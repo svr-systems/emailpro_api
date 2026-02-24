@@ -4,6 +4,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CatalogController;
 use App\Http\Controllers\ClientController;
 use App\Http\Controllers\DomainController;
+use App\Http\Controllers\EmailController;
 use App\Http\Controllers\TicketController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
@@ -36,6 +37,11 @@ Route::group(['middleware' => 'auth:api'], function () {
 
   Route::group(['prefix' => 'domains'], function () {
     Route::post('restore', [DomainController::class, 'restore']);
+
+    Route::group(['prefix' => 'emails'], function () {
+      Route::post('restore', [EmailController::class, 'restore']);
+    });
+    Route::apiResource('emails', EmailController::class);
   });
   Route::apiResource('domains', DomainController::class);
 
