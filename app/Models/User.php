@@ -45,12 +45,10 @@ class User extends Authenticatable {
       'name' => 'required|min:2|max:50',
       'paternal_surname' => 'required|min:2|max:25',
       'maternal_surname' => 'nullable|min:2|max:25',
-      'curp' => 'required|min:18',
-      'phone' => 'nullable|min:10',
     ];
 
     if (!$is_req) {
-      array_push($rules, ['active' => 'required|in:true,false,1,0']);
+      array_push($rules, ['is_active' => 'required|in:true,false,1,0']);
     }
 
     $msgs = [];
@@ -90,18 +88,18 @@ class User extends Authenticatable {
 
   static public function getItems($req) {
     $items = User::
-      where('active', boolval($req->active));
+      where('is_active', boolval($req->is_active));
 
     $items = $items->
       orderBy('name')->
-      orderBy('surname_p')->
-      orderBy('surname_m')->
+      orderBy('paternal_surname')->
+      orderBy('maternal_surname')->
       get([
         'id',
-        'active',
+        'is_active',
         'name',
-        'surname_p',
-        'surname_m',
+        'paternal_surname',
+        'maternal_surname',
         'email',
         'role_id',
         'email_verified_at',
@@ -120,7 +118,7 @@ class User extends Authenticatable {
     $item = User::
       find($id, [
         'id',
-        'active',
+        'is_active',
         'created_at',
         'updated_at',
         'created_by_id',
@@ -129,9 +127,7 @@ class User extends Authenticatable {
         'name',
         'paternal_surname',
         'maternal_surname',
-        'curp',
         'email',
-        'avatar',
         'role_id',
       ]);
 
@@ -139,9 +135,6 @@ class User extends Authenticatable {
       $item->created_by = User::find($item->created_by_id, ['email']);
       $item->updated_by = User::find($item->updated_by_id, ['email']);
       $item->full_name = GenController::getFullName($item);
-      $item->avatar_b64 = DocMgrController::getB64($item->avatar, 'User');
-      $item->avatar_doc = null;
-      $item->avatar_dlt = false;
       $item->role = Role::find($item->role_id, ['name']);
     }
 

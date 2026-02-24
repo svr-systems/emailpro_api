@@ -43,7 +43,7 @@ class UserController extends Controller {
         return $this->apiRsp(422, 'ID no existente');
       }
 
-      $item->active = false;
+      $item->is_active = false;
       $item->updated_by_id = $req->user()->id;
       $item->save();
 
@@ -57,6 +57,31 @@ class UserController extends Controller {
       return $this->apiRsp(500, null, $err);
     }
 
+  }
+
+  public function restore(Request $req) {
+    DB::beginTransaction();
+    try {
+      $item = User::find($req->id);
+
+      if (!$item) {
+        return $this->apiRsp(422, 'ID no existente');
+      }
+
+      $item->is_active = true;
+      $item->updated_by_id = $req->user()->id;
+      $item->save();
+
+      DB::commit();
+      return $this->apiRsp(
+        200,
+        'Registro activado correctamente',
+        ['item' => User::getItem(null, $item->id)]
+      );
+    } catch (Throwable $err) {
+      DB::rollback();
+      return $this->apiRsp(500, null, $err);
+    }
   }
 
   public function store(Request $req) {
@@ -119,22 +144,15 @@ class UserController extends Controller {
 
   public static function saveItem($item, $data, $is_req = true) {
     if (!$is_req) {
-      $item->active = GenController::filter($data->active, 'b');
+      $item->is_active = GenController::filter($data->is_active, 'b');
     }
 
     $item->role_id = GenController::filter($data->role_id, 'id');
     $item->name = GenController::filter($data->name, 'U');
     $item->paternal_surname = GenController::filter($data->paternal_surname, 'U');
     $item->maternal_surname = GenController::filter($data->maternal_surname, 'U');
-    $item->curp = GenController::filter($data->curp, 'U');
     $item->email = GenController::filter($data->email, 'l');
-    $item->phone = GenController::filter($data->phone, 'U');
-    $item->avatar = DocMgrController::save(
-      $data->avatar,
-      DocMgrController::exist($data->avatar_doc),
-      $data->avatar_dlt,
-      'User'
-    );
+    $item->phone = GenController::filter($data->phone, 'l');
     $item->save();
 
     return $item;

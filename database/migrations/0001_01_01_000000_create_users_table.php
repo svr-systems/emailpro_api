@@ -20,11 +20,9 @@ return new class extends Migration {
             $table->string('name',50);
             $table->string('paternal_surname', 25);
             $table->string('maternal_surname', 25)->nullable();
-            $table->string('curp', 18)->nullable()->unique();
-            $table->string('avatar', 50)->nullable()->default(null);
             $table->string('email',65)->unique();
+            $table->string('phone',10)->unique()->nullable()->default(null);
             $table->string('password',72)->nullable()->default(null);
-            $table->string('phone',13);
             $table->string('password_recover_at')->nullable()->default(null);
             $table->rememberToken();
         });
