@@ -10,6 +10,8 @@ class CatalogController extends Controller {
     try {
       $model = match ($catalog) {
         'roles' => \App\Models\Role::class,
+        'extensions' => \App\Models\Extension::class,
+        'expiration_dates' => \App\Models\ExpirationDate::class,
         default => null,
       };
 
