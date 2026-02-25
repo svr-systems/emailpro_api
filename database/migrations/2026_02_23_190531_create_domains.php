@@ -12,7 +12,9 @@ return new class extends Migration {
       $table->timestamps();
       $table->foreignId('created_by_id')->constrained('users');
       $table->foreignId('updated_by_id')->constrained('users');
+      $table->foreignId('client_id')->constrained('clients');
       $table->string('company', 80);
+      $table->string('name', 30);
       $table->foreignId('extention_id')->constrained('extensions');
       $table->date('expire_at');
       $table->tinyInteger('email_accounts');

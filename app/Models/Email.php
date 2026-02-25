@@ -42,7 +42,8 @@ class Email extends Model
 
   static public function getItems($req)
   {
-    $items = Email::where('is_active', (int) $req->is_active);
+    $items = Email::where('is_active', (int) $req->is_active)->
+      where('domain_id',$req->domain_id);
 
     $items = $items->get();
 
