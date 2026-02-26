@@ -6,7 +6,10 @@ use App\Http\Controllers\ClientController;
 use App\Http\Controllers\DomainController;
 use App\Http\Controllers\EmailController;
 use App\Http\Controllers\TicketController;
+use App\Http\Controllers\UserCardController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\UserFiscalDataController;
+use App\Http\Middleware\EnsureUserIsClient;
 use Illuminate\Support\Facades\Route;
 
 Route::post('login', [AuthController::class, 'login']);
@@ -52,6 +55,27 @@ Route::group(['middleware' => 'auth:api'], function () {
 
   Route::group(['prefix' => 'users'], function () {
     Route::post('restore', [UserController::class, 'restore']);
+
+
   });
   Route::apiResource('users', UserController::class);
+});
+
+//CLIENTS
+Route::group(['middleware' => 'auth:api'], function () {
+  Route::middleware([EnsureUserIsClient::class])->group(function () {
+
+    //CARDS
+    Route::group(['prefix' => 'cards'], function () {
+      Route::get('/{user_card_id}', [UserCardController::class, 'show']);
+      Route::delete('/{user_card_id}', [UserCardController::class, 'destroy']);
+      Route::get('/', [UserCardController::class, 'index']);
+      Route::post('/', [UserCardController::class, 'saveCard']);
+      Route::post('/favorite', [UserCardController::class, 'setFavorite']);
+    });
+
+    //USER FISCAL DATA
+    Route::get('user_fiscal_data', [UserFiscalDataController::class, 'getClientFiscalData']);
+    Route::post('user_fiscal_data', [UserFiscalDataController::class, 'setClientFiscalData']);
+  });
 });

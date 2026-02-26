@@ -17,6 +17,8 @@ class DatabaseSeeder extends Seeder
         // $this->call(RoleSeeder::class);
         // $this->call(UserSeeder::class);
         // $this->call(ExtensionSeeder::class);
-        $this->call(ExpirationDateSeeder::class);
+        // $this->call(ExpirationDateSeeder::class);
+        $this->call(FiscalRegimeSeeder::class);
+        $this->call(CfdiUsageSeeder::class);
     }
 }

@@ -129,6 +129,7 @@ class User extends Authenticatable {
         'maternal_surname',
         'email',
         'role_id',
+        'phone',
       ]);
 
     if ($item) {

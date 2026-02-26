@@ -12,6 +12,8 @@ class CatalogController extends Controller {
         'roles' => \App\Models\Role::class,
         'extensions' => \App\Models\Extension::class,
         'expiration_dates' => \App\Models\ExpirationDate::class,
+        'fiscal_regimes' => \App\Models\FiscalRegime::class,
+        'cfdi_usages' => \App\Models\CfdiUsage::class,
         default => null,
       };
 

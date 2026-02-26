@@ -46,4 +46,54 @@ class OpenpayController extends Controller {
     $customer->phone =  $user->phone;
     $customer->save();
   }
+
+  static function createCard($req) {
+    $openpay = Openpay::getInstance(
+      env('OPENPAY_MERCHANT_ID'),
+      env('OPENPAY_CUSTOMER_ID'),
+      'MX',
+      '127.0.0.1'
+    );
+
+    $card_data_request = array(
+      'holder_name' => $req->holder_name,
+      'card_number' => $req->card_number,
+      'cvv2' => $req->cvv2,
+      'expiration_month' => $req->expiration_month,
+      'expiration_year' => $req->expiration_year,
+      // 'device_session_id' => 'kR1MiQhz2otdIuUlQkbEyitIqVMiI16f',
+    );
+
+    $customer = $openpay->customers->get($req->customer_id);
+    $card = $customer->cards->add($card_data_request);
+
+    return $card->id;
+  }
+
+  static function getCard($customer_id, $card_id) {
+    $openpay = Openpay::getInstance(
+      env('OPENPAY_MERCHANT_ID'),
+      env('OPENPAY_CUSTOMER_ID'),
+      'MX',
+      '127.0.0.1'
+    );
+
+    $customer = $openpay->customers->get($customer_id);
+    $card = $customer->cards->get($card_id);
+
+    return $card;
+  }
+
+  static function deleteCard($customer_id, $card_id) {
+    $openpay = Openpay::getInstance(
+      env('OPENPAY_MERCHANT_ID'),
+      env('OPENPAY_CUSTOMER_ID'),
+      'MX',
+      '127.0.0.1'
+    );
+
+    $customer = $openpay->customers->get($customer_id);
+    $card = $customer->cards->get($card_id);
+    $card->delete();
+  }
 }

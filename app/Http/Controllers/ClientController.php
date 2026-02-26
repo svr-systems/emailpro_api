@@ -97,9 +97,9 @@ class ClientController extends Controller {
     DB::beginTransaction();
     try {
       $store_mode = is_null($id);
-      $item = $this->saveItem($req,$id);
-      
-      if($item['msg']){
+      $item = $this->saveItem($req, $id);
+
+      if ($item['msg']) {
         return $this->apiRsp(422, $item['msg']);
       }
 
@@ -115,49 +115,54 @@ class ClientController extends Controller {
     }
   }
 
-  public function saveItem($req,$id) {
-      $user = json_encode($req->user);
-      $user_data = json_decode($user);
-      $user_data->role_id = 2;
-      $email = GenController::filter($user_data->email, 'l');
+  public function saveItem($req, $id) {
+    // $user = json_encode($req->user);
+    // $user_data = json_decode($user);
+    $user_data = json_decode($req->user);
+    $user_data->role_id = 2;
+    $email = GenController::filter($user_data->email, 'l');
 
-      $valid = User::validEmail(['email' => $email], $user_data->id);
-      if ($valid->fails()) {
-        return ['msg' => $valid->errors()->first()];
-      }
+    $valid = User::validEmail(['email' => $email], $user_data->id);
+    if ($valid->fails()) {
+      return ['msg' => $valid->errors()->first()];
+    }
 
-      $valid = User::valid((array) $user_data);
-      if ($valid->fails()) {
-        return ['msg' => $valid->errors()->first()];
-      }
-      $store_mode = is_null($id);
+    $valid = User::valid((array) $user_data);
+    if ($valid->fails()) {
+      return ['msg' => $valid->errors()->first()];
+    }
+    $store_mode = is_null($id);
 
-      if ($store_mode) {
-        $user = new User;
-        $user->created_by_id = $req->user()->id;
-        $user->updated_by_id = $req->user()->id;
+    if ($store_mode) {
+      $user = new User;
+      $user->created_by_id = $req->user()->id;
+      $user->updated_by_id = $req->user()->id;
 
-        $item = new Client;
-        $openpay = New OpenpayController;
-        $customer_id = $openpay->createCustomer($user_data);
-      } else {
-        $item = Client::find($id);
-        $user = User::find($item->user_id);
+      $item = new Client;
+      $openpay = new OpenpayController;
+      $customer_id = $openpay->createCustomer($user_data);
+    } else {
+      $item = Client::find($id);
+      $user = User::find($item->user_id);
 
-        $user->updated_by_id = $req->user()->id;
-        $customer_id = $item->customer_id;
-        $openpay = New OpenpayController;
-        $openpay->editCustomer($user_data,$customer_id);
-      }
+      $user->updated_by_id = $req->user()->id;
+      $customer_id = $item->customer_id;
+      $openpay = new OpenpayController;
+      $openpay->editCustomer($user_data, $customer_id);
+    }
 
-      $user = UserController::saveItem($user, $user_data);
+    $user = UserController::saveItem($user, $user_data);
 
-      $item->user_id = $user->id;
-      $item->customer_id = $customer_id;
+    $item->user_id = $user->id;
+    $item->customer_id = $customer_id;
 
-      $item->save();
+    if (!$user->email_verified_at) {
+      EmailController::userAccountConfirmation($user->email, $user);
+    }
 
-      return $item;
+    $item->save();
+
+    return $item;
   }
 
   public function search(Request $req) {

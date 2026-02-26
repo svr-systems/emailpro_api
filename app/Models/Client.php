@@ -20,7 +20,7 @@ class Client extends Model {
       where('users.is_active', boolval($req->is_active));
 
     $items = $items->
-    get([
+      get([
         'clients.id',
         'users.is_active',
         'user_id',
@@ -39,7 +39,7 @@ class Client extends Model {
 
   static public function getItem($req, $id) {
     $item = Client::
-    find($id, [
+      find($id, [
         'id',
         'user_id',
         'customer_id'
@@ -52,5 +52,14 @@ class Client extends Model {
     }
 
     return $item;
+  }
+
+  static public function getclientIDByUserId($user_id) {
+    $item = Client::where('user_id', $user_id)->
+      first([
+        'id'
+      ]);
+
+    return $item->id;
   }
 }
