@@ -4,17 +4,17 @@ namespace App\Http\Controllers;
 
 use App\Models\Client;
 use Illuminate\Http\Request;
-use App\Models\Domain;
+use App\Models\Email;
 use Throwable;
 use DB;
 
-class DomainController extends Controller {
+class EmailDomainController extends Controller {
   public function index(Request $req) {
     try {
       return $this->apiRsp(
         200,
         'Registros retornados correctamente',
-        ['items' => Domain::getItems($req)]
+        ['items' => Email::getItems($req)]
       );
     } catch (Throwable $err) {
       return $this->apiRsp(500, null, $err);
@@ -26,7 +26,7 @@ class DomainController extends Controller {
       return $this->apiRsp(
         200,
         'Registro retornado correctamente',
-        ['item' => Domain::getItem($req, $id)]
+        ['item' => Email::getItem($req, $id)]
       );
     } catch (Throwable $err) {
       return $this->apiRsp(500, null, $err);
@@ -36,7 +36,7 @@ class DomainController extends Controller {
   public function destroy(Request $req, $id) {
     DB::beginTransaction();
     try {
-      $item = Domain::find($id);
+      $item = Email::find($id);
 
       if (!$item) {
         return $this->apiRsp(422, 'ID no existente');
@@ -61,7 +61,7 @@ class DomainController extends Controller {
   public function restore(Request $req) {
     DB::beginTransaction();
     try {
-      $item = Domain::find($req->id);
+      $item = Email::find($req->id);
 
       if (!$item) {
         return $this->apiRsp(422, 'ID no existente');
@@ -75,7 +75,7 @@ class DomainController extends Controller {
       return $this->apiRsp(
         200,
         'Registro activado correctamente',
-        ['item' => Domain::getItem(null, $item->id)]
+        ['item' => Email::getItem(null, $item->id)]
       );
     } catch (Throwable $err) {
       DB::rollback();
@@ -94,7 +94,7 @@ class DomainController extends Controller {
   public function storeUpdate($req, $id) {
     DB::beginTransaction();
     try {
-      $valid = Domain::valid($req->all());
+      $valid = Email::valid($req->all());
 
       if ($valid->fails()) {
         return $this->apiRsp(422, $valid->errors()->first());
@@ -103,11 +103,11 @@ class DomainController extends Controller {
       $store_mode = is_null($id);
 
       if ($store_mode) {
-        $item = new Domain;
+        $item = new Email;
         $item->created_by_id = $req->user()->id;
         $item->updated_by_id = $req->user()->id;
       } else {
-        $item = Domain::find($id);
+        $item = Email::find($id);
         $item->updated_by_id = $req->user()->id;
       }
 
@@ -126,36 +126,21 @@ class DomainController extends Controller {
   }
 
   public static function saveItem($item, $data) {
-    $item->client_id = GenController::filter($data->client_id, 'id');
-    $item->company = GenController::filter($data->company, 'U');
-    $item->name = GenController::filter($data->name, 'l');
-    $item->extention_id = GenController::filter($data->extention_id, 'id');
-    $item->expire_at = GenController::filter($data->expire_at, 'd');
-    $item->email_accounts = GenController::filter($data->email_accounts, 'd');
+    $item->email = GenController::filter($data->email, 'U');
+    $item->domain_id = GenController::filter($data->domain_id, 'id');
 
     $item->save();
 
     return $item;
   }
 
-  ///////////////////////CLIENT//////////////////////////
-  public function indexClient(Request $req) {
+  ////////CLIENTE///////////
+  public function indexClient(Request $req,$domain_id) {
     try {
       return $this->apiRsp(
         200,
         'Registros retornados correctamente',
-        ['items' => Domain::getClientItems(Client::getclientIDByUserId($req->user()->id))]
-      );
-    } catch (Throwable $err) {
-      return $this->apiRsp(500, null, $err);
-    }
-  }
-  public function showClient(Request $req,$id) {
-    try {
-      return $this->apiRsp(
-        200,
-        'Registros retornados correctamente',
-        ['items' => Domain::getClientItem(Client::getclientIDByUserId($req->user()->id),$id)]
+        ['items' => Email::getClientItems(Client::getclientIDByUserId($req->user()->id),$domain_id)]
       );
     } catch (Throwable $err) {
       return $this->apiRsp(500, null, $err);

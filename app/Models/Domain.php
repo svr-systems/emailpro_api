@@ -40,8 +40,7 @@ class Domain extends Model {
   }
 
   static public function getItems($req) {
-    $items = Domain::where('is_active', (int) $req->is_active)->
-      where('client_id',$req->client_id);
+    $items = Domain::where('is_active', (int) $req->is_active);
 
     $items = $items->get();
 
@@ -62,6 +61,35 @@ class Domain extends Model {
       $item->updated_by = User::find($item->updated_by_id, ['email']);
       $item->extension = Extension::find($item->extention_id, ['name']);
     }
+
+    return $item;
+  }
+
+  ///////CLIENT//////
+
+  static public function getClientItems($client_id) {
+    $items = Domain::where('is_active', true)->
+      where('client_id', $client_id);
+
+    $items = $items->get(['id', 'company', 'name', 'extention_id', 'expire_at', 'email_accounts']);
+
+    foreach ($items as $key => $item) {
+      $item->key = $key;
+      $item->uiid = Domain::getUiid($item->id);
+    }
+
+    return $items;
+  }
+
+  static public function getClientItem($client_id, $id) {
+    $item = Domain::where('is_active', true)->
+      where('client_id', $client_id)->
+      where('id', $id);
+
+    $item = $item->first(['id', 'company', 'name', 'extention_id', 'expire_at', 'email_accounts']);
+
+    $item->uiid = Domain::getUiid($item->id);
+    $item->extension = Extension::find($item->extention_id, ['name']);
 
     return $item;
   }

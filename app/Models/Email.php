@@ -67,4 +67,21 @@ class Email extends Model
 
     return $item;
   }
+
+  static public function getClientItems($client_id,$domain_id)
+  {
+    $items = Email::join('domains','domains.id','emails.domain_id')->
+      where('domains.is_active', true)->
+      where('client_id', $client_id)->
+      where('domain_id',$domain_id);
+
+    $items = $items->get(['emails.id','email']);
+
+    foreach ($items as $key => $item) {
+      $item->key = $key;
+      $item->uiid = Email::getUiid($item->id);
+    }
+
+    return $items;
+  }
 }

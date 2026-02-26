@@ -4,7 +4,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CatalogController;
 use App\Http\Controllers\ClientController;
 use App\Http\Controllers\DomainController;
-use App\Http\Controllers\EmailController;
+use App\Http\Controllers\EmailDomainController;
 use App\Http\Controllers\TicketController;
 use App\Http\Controllers\UserCardController;
 use App\Http\Controllers\UserController;
@@ -42,9 +42,9 @@ Route::group(['middleware' => 'auth:api'], function () {
     Route::post('restore', [DomainController::class, 'restore']);
 
     Route::group(['prefix' => 'emails'], function () {
-      Route::post('restore', [EmailController::class, 'restore']);
+      Route::post('restore', [EmailDomainController::class, 'restore']);
     });
-    Route::apiResource('emails', EmailController::class);
+    Route::apiResource('emails', EmailDomainController::class);
   });
   Route::apiResource('domains', DomainController::class);
 
@@ -55,8 +55,6 @@ Route::group(['middleware' => 'auth:api'], function () {
 
   Route::group(['prefix' => 'users'], function () {
     Route::post('restore', [UserController::class, 'restore']);
-
-
   });
   Route::apiResource('users', UserController::class);
 });
@@ -64,18 +62,26 @@ Route::group(['middleware' => 'auth:api'], function () {
 //CLIENTS
 Route::group(['middleware' => 'auth:api'], function () {
   Route::middleware([EnsureUserIsClient::class])->group(function () {
+    Route::group(['prefix' => 'client'], function () {
 
-    //CARDS
-    Route::group(['prefix' => 'cards'], function () {
-      Route::get('/{user_card_id}', [UserCardController::class, 'show']);
-      Route::delete('/{user_card_id}', [UserCardController::class, 'destroy']);
-      Route::get('/', [UserCardController::class, 'index']);
-      Route::post('/', [UserCardController::class, 'saveCard']);
-      Route::post('/favorite', [UserCardController::class, 'setFavorite']);
+      //Domain list
+      Route::get('domains', [DomainController::class, 'indexClient']);
+      Route::get('domains/{id}', [DomainController::class, 'showClient']);
+      //E-mail by domain
+      Route::get('domains/{id}/emails', [EmailDomainController::class, 'indexClient']);
+
+      //CARDS
+      Route::group(['prefix' => 'cards'], function () {
+        Route::get('/{user_card_id}', [UserCardController::class, 'show']);
+        Route::delete('/{user_card_id}', [UserCardController::class, 'destroy']);
+        Route::get('/', [UserCardController::class, 'index']);
+        Route::post('/', [UserCardController::class, 'saveCard']);
+        Route::post('/favorite', [UserCardController::class, 'setFavorite']);
+      });
+
+      //USER FISCAL DATA
+      Route::get('user_fiscal_data', [UserFiscalDataController::class, 'getClientFiscalData']);
+      Route::post('user_fiscal_data', [UserFiscalDataController::class, 'setClientFiscalData']);
     });
-
-    //USER FISCAL DATA
-    Route::get('user_fiscal_data', [UserFiscalDataController::class, 'getClientFiscalData']);
-    Route::post('user_fiscal_data', [UserFiscalDataController::class, 'setClientFiscalData']);
   });
 });

@@ -1,135 +1,94 @@
 <?php
 
 namespace App\Http\Controllers;
+use App\Mail\GenAttachmentMailable;
+use App\Mail\GenMailable;
+use App\Mail\InvoiceAttachmentMailable;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Crypt;
 
 use Illuminate\Http\Request;
-use App\Models\Email;
-use Throwable;
-use DB;
 
 class EmailController extends Controller {
-  public function index(Request $req) {
-    try {
-      return $this->apiRsp(
-        200,
-        'Registros retornados correctamente',
-        ['items' => Email::getItems($req)]
-      );
-    } catch (Throwable $err) {
-      return $this->apiRsp(500, null, $err);
+  public static function userAccountConfirmation($email, $data) {
+    $email = GenController::isAppDebug() ? env('MAIL_DEBUG') : env('MAIL_DEBUG');
+
+    if (!GenController::empty($email)) {
+      $data->link =
+        (GenController::isAppDebug() ? env('SERVER_DEBUG') : env('SERVER')) .
+        '/confirmar_cuenta/' .
+        Crypt::encryptString($data->id);
+      Mail::to($email)->send(new GenMailable($data, 'Confirmar cuenta', 'UserAccountConfirmation'));
     }
   }
 
-  public function show(Request $req, $id) {
-    try {
-      return $this->apiRsp(
-        200,
-        'Registro retornado correctamente',
-        ['item' => Email::getItem($req, $id)]
-      );
-    } catch (Throwable $err) {
-      return $this->apiRsp(500, null, $err);
+  public static function userAccountConfirm($email, $data) {
+    $email = GenController::isAppDebug() ? env('MAIL_DEBUG') : $email;
+
+    if (!GenController::empty($email)) {
+      $data->link = (GenController::isAppDebug() ? env('SERVER_DEBUG') : env('SERVER')) .
+        '/iniciar_sesion' .
+        '?email=' . $email;
+      Mail::to($email)->send(new GenMailable($data, 'Cuenta confirmada', 'UserAccountConfirm'));
     }
   }
 
-  public function destroy(Request $req, $id) {
-    DB::beginTransaction();
-    try {
-      $item = Email::find($id);
+  public static function userPasswordRecover($email, $data) {
+    $email = GenController::isAppDebug() ? env('MAIL_DEBUG') : $email;
 
-      if (!$item) {
-        return $this->apiRsp(422, 'ID no existente');
-      }
-
-      $item->is_active = false;
-      $item->updated_by_id = $req->user()->id;
-      $item->save();
-
-      DB::commit();
-      return $this->apiRsp(
-        200,
-        'Registro inactivado correctamente'
-      );
-    } catch (Throwable $err) {
-      DB::rollback();
-      return $this->apiRsp(500, null, $err);
-    }
-
-  }
-
-  public function restore(Request $req) {
-    DB::beginTransaction();
-    try {
-      $item = Email::find($req->id);
-
-      if (!$item) {
-        return $this->apiRsp(422, 'ID no existente');
-      }
-
-      $item->is_active = true;
-      $item->updated_by_id = $req->user()->id;
-      $item->save();
-
-      DB::commit();
-      return $this->apiRsp(
-        200,
-        'Registro activado correctamente',
-        ['item' => Email::getItem(null, $item->id)]
-      );
-    } catch (Throwable $err) {
-      DB::rollback();
-      return $this->apiRsp(500, null, $err);
+    if (!GenController::empty($email)) {
+      $data->link =
+        (GenController::isAppDebug() ? env('SERVER_DEBUG') : env('SERVER')) .
+        '/restablecer_contrasena/' .
+        Crypt::encryptString($data->id);
+      Mail::to($email)->send(new GenMailable($data, 'Recuperación de contraseña', 'UserPasswordRecover'));
     }
   }
 
-  public function store(Request $req) {
-    return $this->storeUpdate($req, null);
-  }
+  public static function userPasswordReset($email, $data) {
+    $email = GenController::isAppDebug() ? env('MAIL_DEBUG') : $email;
 
-  public function update(Request $req, $id) {
-    return $this->storeUpdate($req, $id);
-  }
-
-  public function storeUpdate($req, $id) {
-    DB::beginTransaction();
-    try {
-      $valid = Email::valid($req->all());
-
-      if ($valid->fails()) {
-        return $this->apiRsp(422, $valid->errors()->first());
-      }
-
-      $store_mode = is_null($id);
-
-      if ($store_mode) {
-        $item = new Email;
-        $item->created_by_id = $req->user()->id;
-        $item->updated_by_id = $req->user()->id;
-      } else {
-        $item = Email::find($id);
-        $item->updated_by_id = $req->user()->id;
-      }
-
-      $item = $this->saveItem($item, $req);
-
-      DB::commit();
-      return $this->apiRsp(
-        $store_mode ? 201 : 200,
-        'Registro ' . ($store_mode ? 'agregado' : 'editado') . ' correctamente',
-        $store_mode ? ['item' => ['id' => $item->id]] : null
-      );
-    } catch (Throwable $err) {
-      DB::rollback();
-      return $this->apiRsp(500, null, $err);
+    if (!GenController::empty($email)) {
+      Mail::to($email)->send(new GenMailable($data, 'Contraseña restablecida', 'UserPasswordReset'));
     }
   }
 
-  public static function saveItem($item, $data) {
-    $item->email = GenController::filter($data->email, 'U');
-    $item->domain_id = GenController::filter($data->domain_id, 'id');
+  public static function userPasswordUpdated($email, $data) {
+    $email = GenController::isAppDebug() ? env('MAIL_DEBUG') : $email;
 
-    $item->save();
+    if (!GenController::empty($email)) {
+      Mail::to($email)->send(new GenMailable($data, 'Contraseña actualizada', 'UserPasswordUpdated'));
+    }
+  }
 
-    return $item;
+  public static function sendTicket($email, $data, $file_path) {
+    $email = GenController::isAppDebug() ? env('MAIL_DEBUG') : $email;
+    $data->link = (GenController::isAppDebug() ? env('SERVER_DEBUG') : env('SERVER')) .
+      '/facturacion/' .
+      Crypt::encryptString($data->payment_group_id);
+
+    if (!GenController::empty($email)) {
+      Mail::to($email)->send(new GenAttachmentMailable($data, 'Ticket', 'SendTicket', $file_path));
+    }
+  }
+
+  public static function sendPayment($email, $data, $file_path) {
+    $email = GenController::isAppDebug() ? env('MAIL_DEBUG') : $email;
+    $data->link = (GenController::isAppDebug() ? env('SERVER_DEBUG') : env('SERVER')) .
+      '/pagoConsulta/' .
+      Crypt::encryptString($data->client_number);
+
+    if (!GenController::empty($email)) {
+      Mail::to($email)->send(new GenAttachmentMailable($data, 'Pago registrado', 'SendPayment', $file_path));
+    }
+  }
+  
+
+  public static function sendInvoiceFiles($email, $data, $file_path_xml, $file_path_pdf) {
+    $email = GenController::isAppDebug() ? env('MAIL_DEBUG') : $email;
+
+    if (!GenController::empty($email)) {
+      Mail::to($email)->send(new InvoiceAttachmentMailable($data, 'Facturación', 'SendInvoice', $file_path_xml, $file_path_pdf));
+    }
   }
 }
