@@ -6,15 +6,15 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration {
   public function up(): void {
-    Schema::create('expiration_dates', function (Blueprint $table) {
+    Schema::create('payment_forms', function (Blueprint $table) {
       $table->id();
       $table->boolean('is_active')->default(true);
-      $table->string('name', 25);
-      $table->integer('days');
+      $table->string('name', 35);
+      $table->string('code', 2)->unique();
     });
   }
 
   public function down(): void {
-    Schema::dropIfExists('expiration_dates');
+    Schema::dropIfExists('payment_forms');
   }
 };

@@ -14,6 +14,8 @@ class CatalogController extends Controller {
         'expiration_dates' => \App\Models\ExpirationDate::class,
         'fiscal_regimes' => \App\Models\FiscalRegime::class,
         'cfdi_usages' => \App\Models\CfdiUsage::class,
+        'bank_types' => \App\Models\BankType::class,
+        'payment_forms' => \App\Models\PaymentForm::class,
         default => null,
       };
 

@@ -5,6 +5,7 @@ use App\Http\Controllers\CatalogController;
 use App\Http\Controllers\ClientController;
 use App\Http\Controllers\DomainController;
 use App\Http\Controllers\EmailDomainController;
+use App\Http\Controllers\OpenpayController;
 use App\Http\Controllers\TicketController;
 use App\Http\Controllers\UserCardController;
 use App\Http\Controllers\UserController;
@@ -63,6 +64,9 @@ Route::group(['middleware' => 'auth:api'], function () {
 Route::group(['middleware' => 'auth:api'], function () {
   Route::middleware([EnsureUserIsClient::class])->group(function () {
     Route::group(['prefix' => 'client'], function () {
+
+      //payment
+      Route::post('payments', [OpenpayController::class, 'paymentUserCard']);
 
       //Domain list
       Route::get('domains', [DomainController::class, 'indexClient']);
