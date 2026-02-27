@@ -15,6 +15,7 @@ return new class extends Migration {
       $table->foreignId('client_id')->constrained('clients');
       $table->string('company', 80);
       $table->string('name', 30);
+      $table->decimal('email_price',11,2);
       $table->foreignId('extention_id')->constrained('extensions');
       $table->date('expire_at');
       $table->tinyInteger('email_accounts');

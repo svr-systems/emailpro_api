@@ -11,7 +11,7 @@ class ExpirationDate extends Model {
 
   static public function getItems($req) {
     $items = ExpirationDate::
-      orderBy('months')->
+      orderBy('days')->
       where('is_active', true)->
       get();
 

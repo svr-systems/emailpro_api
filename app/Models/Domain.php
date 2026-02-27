@@ -21,6 +21,7 @@ class Domain extends Model {
     $rules = [
       'company' => 'required|min:2|max:80',
       'name' => 'required|min:2|max:30',
+      'email_price' => 'required|numeric',
       'extention_id' => 'required|numeric',
       'expire_at' => 'required|date',
       'email_accounts' => 'required|numeric',
@@ -40,7 +41,8 @@ class Domain extends Model {
   }
 
   static public function getItems($req) {
-    $items = Domain::where('is_active', (int) $req->is_active);
+    $items = Domain::where('is_active', (int) $req->is_active)->
+      where('client_id',$req->client_id);
 
     $items = $items->get();
 
@@ -71,7 +73,7 @@ class Domain extends Model {
     $items = Domain::where('is_active', true)->
       where('client_id', $client_id);
 
-    $items = $items->get(['id', 'company', 'name', 'extention_id', 'expire_at', 'email_accounts']);
+    $items = $items->get(['id', 'company', 'name','email_price', 'extention_id', 'expire_at', 'email_accounts']);
 
     foreach ($items as $key => $item) {
       $item->key = $key;
@@ -86,7 +88,7 @@ class Domain extends Model {
       where('client_id', $client_id)->
       where('id', $id);
 
-    $item = $item->first(['id', 'company', 'name', 'extention_id', 'expire_at', 'email_accounts']);
+    $item = $item->first(['id', 'company', 'name','email_price', 'extention_id', 'expire_at', 'email_accounts']);
 
     $item->uiid = Domain::getUiid($item->id);
     $item->extension = Extension::find($item->extention_id, ['name']);

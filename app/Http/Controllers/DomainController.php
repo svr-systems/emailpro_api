@@ -129,6 +129,7 @@ class DomainController extends Controller {
     $item->client_id = GenController::filter($data->client_id, 'id');
     $item->company = GenController::filter($data->company, 'U');
     $item->name = GenController::filter($data->name, 'l');
+    $item->email_price = GenController::filter($data->email_price, 'd');
     $item->extention_id = GenController::filter($data->extention_id, 'id');
     $item->expire_at = GenController::filter($data->expire_at, 'd');
     $item->email_accounts = GenController::filter($data->email_accounts, 'd');
