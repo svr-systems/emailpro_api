@@ -46,7 +46,7 @@ class OpenpayController extends Controller {
       if (GenController::filter(env('OPENPAY_3D_SECURE_AMOUNT'), 'i')) {
         if ($req->total > GenController::filter(env('OPENPAY_3D_SECURE_AMOUNT'), 'f')) {
           $chargeData['use_3d_secure'] = true;
-          $chargeData['redirect_url'] = 'https://apipagoselectronicos.svr.com.mx/pago_exitoso';
+          $chargeData['redirect_url'] = 'https://apidevemailpro.svr.com.mx/pago_exitoso';
           $use_3d_secure = true;
         }
       }
@@ -56,16 +56,21 @@ class OpenpayController extends Controller {
       UserCard::setUnfavorite($req->user()->id);
       UserCard::setfavoriteByCard_id($req->token_id);
 
-      $response = new \stdClass;
+      $redirect_url = null;
 
       if (!$use_3d_secure) {
-        $response = $this->saveOpenpayTransaction($charge->id);
+        $this->saveOpenpayTransaction($charge->id);
       } else {
-        $response->redirect_url = $charge->payment_method->url;
+        $redirect_url = $charge->payment_method->url;
       }
 
       DB::commit();
-      return $response;
+
+      return $this->apiRsp(
+        200,
+        'Registros creado correctamente',
+        ['redirect_url' => $redirect_url]
+      );
 
     } catch (Throwable $e) {
       $error_code = null;
@@ -150,15 +155,11 @@ class OpenpayController extends Controller {
         $domain_id = GenController::filter(explode('-', $charge->description)[0], 'id');
         $expiration_date_id = GenController::filter(explode('-', $charge->description)[1], 'id');
 
-        $payment->domain_id = $domain_id;
-        $payment->amount = $charge->amount;
-        $payment->transaction_id = $transaction->id;
-        $payment->expiration_date_id = $expiration_date_id;
+        $domain = Domain::find($domain_id);
 
-        $payment->save();
+        $expired_on = $domain->expire_at;
 
         $expiration_date = ExpirationDate::find($expiration_date_id);
-        $domain = Domain::find($domain_id);
 
         $today = Carbon::today();
         // Fecha base
@@ -168,6 +169,15 @@ class OpenpayController extends Controller {
 
         // Nueva fecha
         $domain->expire_at = $base_date->copy()->addDays($expiration_date->days);
+
+        $payment->domain_id = $domain_id;
+        $payment->amount = $charge->amount;
+        $payment->expired_on = $expired_on;
+        $payment->expire_at = $domain->expire_at;
+        $payment->transaction_id = $transaction->id;
+        $payment->expiration_date_id = $expiration_date_id;
+
+        $payment->save();
 
         $domain->save();
       }

@@ -134,6 +134,8 @@ class UserCardController extends Controller {
 
       $req->customer_id = $client->customer_id;
 
+      // return $req->customer_id;
+
       $card_id = OpenpayController::createCard($req);
 
       $card = new UserCard;

@@ -39,14 +39,15 @@ class Payment extends Model {
   }
 
   static public function getItems($req) {
-    $items = Payment::where('is_active', (int) $req->is_active)->
-      where('client_id', $req->client_id);
+    $items = Payment::where('is_active',true)->
+      where('domain_id', $req->domain_id);
 
-    $items = $items->get();
+    $items = $items->get(['id','created_at','amount','expired_on','expire_at','invoice_id','expiration_date_id']);
 
     foreach ($items as $key => $item) {
       $item->key = $key;
       $item->uiid = Payment::getUiid($item->id);
+      $item->expiration_date = ExpirationDate::find($item->expiration_date_id,['name']);
     }
 
     return $items;

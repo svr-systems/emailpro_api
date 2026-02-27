@@ -6,6 +6,7 @@ use App\Http\Controllers\ClientController;
 use App\Http\Controllers\DomainController;
 use App\Http\Controllers\EmailDomainController;
 use App\Http\Controllers\OpenpayController;
+use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\TicketController;
 use App\Http\Controllers\UserCardController;
 use App\Http\Controllers\UserController;
@@ -33,6 +34,8 @@ Route::group(['prefix' => 'public'], function () {
     });
   });
 });
+
+Route::get('payments/3dsecure/{openpay_id}', [OpenpayController::class, 'saveOpenpayTransaction']);
 
 Route::group(['middleware' => 'auth:api'], function () {
   Route::post('logout', [AuthController::class, 'logout']);
@@ -66,6 +69,7 @@ Route::group(['middleware' => 'auth:api'], function () {
     Route::group(['prefix' => 'client'], function () {
 
       //payment
+      Route::get('payments', [PaymentController::class, 'index']);
       Route::post('payments', [OpenpayController::class, 'paymentUserCard']);
 
       //Domain list

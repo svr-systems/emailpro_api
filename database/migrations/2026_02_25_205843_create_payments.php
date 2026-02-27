@@ -12,6 +12,8 @@ return new class extends Migration {
       $table->timestamps();
       $table->foreignId('domain_id')->constrained('domains');
       $table->decimal('amount', 11, 2);
+      $table->date('expired_on');
+      $table->date('expire_at');
       $table->foreignId('transaction_id')->constrained('transactions');
       $table->foreignId('expiration_date_id')->constrained('expiration_dates');
       $table->string('invoice_id', 25)->nullable();
