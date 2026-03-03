@@ -5,45 +5,49 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Throwable;
 
-class CatalogController extends Controller {
-  public function index(Request $req, $catalog) {
+class CatalogController extends Controller
+{
+  public function index(string $catalog, Request $request)
+  {
     try {
+      $catalog = strtolower(trim($catalog));
+
       $model = match ($catalog) {
         'roles' => \App\Models\Role::class,
-        'extensions' => \App\Models\Extension::class,
-        'expiration_dates' => \App\Models\ExpirationDate::class,
-        'fiscal_regimes' => \App\Models\FiscalRegime::class,
-        'cfdi_usages' => \App\Models\CfdiUsage::class,
-        'bank_types' => \App\Models\BankType::class,
-        'payment_forms' => \App\Models\PaymentForm::class,
         default => null,
       };
 
-      abort_if(!$model, 404, 'Catálogo no encontrado');
-      return $this->apiRsp(
-        200,
-        'Registros retornados correctamente',
-        ['items' => $model::getItems($req)]
-      );
+      if (!$model) {
+        return $this->rsp(404, 'Catálogo no encontrado');
+      }
+
+      return $this->rsp(200, 'Registros retornados correctamente', [
+        'items' => $model::getItems($request),
+      ]);
     } catch (Throwable $err) {
-      return $this->apiRsp(500, null, $err);
+      return $this->rsp(500, null, $err);
     }
   }
-  
-  public function publicCatalog(Request $req, $catalog) {
+
+  public function publicIndex(string $catalog, Request $request)
+  {
     try {
+      $catalog = strtolower(trim($catalog));
+
       $model = match ($catalog) {
+        'fiscal_regimes' => \App\Models\FiscalRegime::class,
         default => null,
       };
 
-      abort_if(!$model, 404, 'Catálogo no encontrado');
-      return $this->apiRsp(
-        200,
-        'Registros retornados correctamente',
-        ['items' => $model::getItems($req)]
-      );
+      if (!$model) {
+        return $this->rsp(404, 'Catálogo no encontrado');
+      }
+
+      return $this->rsp(200, 'Registros retornados correctamente', [
+        'items' => $model::getItems($request),
+      ]);
     } catch (Throwable $err) {
-      return $this->apiRsp(500, null, $err);
+      return $this->rsp(500, null, $err);
     }
   }
 }

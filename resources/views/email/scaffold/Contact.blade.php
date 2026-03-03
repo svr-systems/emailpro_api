@@ -1,7 +1,9 @@
 <div class="contact">
   <p>
-    Siéntete libre de contactarnos para cualquier duda o aclaración a
+    Si tienes dudas o necesitas soporte, contáctanos en:
     <br>
-    <a href="mailto:contacto@solmetec.mx" target="_blank" style="color: inherit">contacto@solmetec.mx</a>
+    <a href="mailto:contacto@svr.mx" target="_blank" style="color: inherit">
+      contacto@svr.mx
+    </a>
   </p>
 </div>

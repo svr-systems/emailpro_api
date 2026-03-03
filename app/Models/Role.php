@@ -3,21 +3,29 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Http\Request;
 
-class role extends Model
+class Role extends Model
 {
+  /**
+   * CATÁLOGO ESTÁTICO
+   */
   public $timestamps = false;
 
-  static public function getItems($req) {
-    $items = Role::
-      orderBy('name')->
-      where('is_active', true);
+  // CONSULTAS
+  public static function getItems(Request $request)
+  {
+    $items = self::query();
 
-    $items = $items->get([
-      'id',
-      'name',
+    $items->select([
+      'roles.id',
+      'roles.name',
     ]);
 
-    return $items;
+    $items->whereIn('roles.id', [1, 2]);
+
+    $items->orderBy('roles.name');
+
+    return $items->get();
   }
 }

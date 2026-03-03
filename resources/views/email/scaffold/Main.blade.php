@@ -4,30 +4,31 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SOLMETEC | MedicPay</title>
-  <style>
-    @font-face {
-      font-family: "Roboto";
-      src: url("{{ storage_path('app/public') . '/fonts/Roboto.ttf' }}") format("truetype");
-    }
+  <title>{{ config('app.name') }}</title>
 
+  <style>
     body {
+      margin: 0;
+      padding: 0;
       background-color: #1A1A1A;
       color: #BCBCBC;
+      font-family: Arial, Helvetica, sans-serif;
     }
 
-    .a-color {
-      text-decoration: none;
-      font-size: 19px;
+    .wrapper {
+      width: 100%;
+      padding: 24px 0;
     }
 
     .content-box {
-      width: 80%;
-      padding: 50px;
-      border-radius: 15px;
-      box-shadow: 0px 5px 25px 20px #151515;
+      width: 92%;
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 32px 24px;
+      border-radius: 14px;
+      background-color: #1E1E1E;
+      box-shadow: 0px 5px 25px 10px #151515;
       text-align: center;
-      font-family: "Roboto", sans-serif !important;
     }
 
     .font-weight-light {
@@ -35,11 +36,14 @@
     }
 
     .button {
+      display: inline-block;
       cursor: pointer;
       font-weight: bold;
-      padding: 8px 12px 8px 12px;
-      border-radius: 4px;
-      box-shadow: 0px 3px 1px -2px rgba(0, 0, 0, 0.2), 0px 2px 2px 0px rgba(0, 0, 0, 0.14), 0px 1px 5px 0px rgba(0, 0, 0, 0.12);
+      padding: 10px 14px;
+      border-radius: 6px;
+      box-shadow: 0px 3px 1px -2px rgba(0, 0, 0, 0.2),
+        0px 2px 2px 0px rgba(0, 0, 0, 0.14),
+        0px 1px 5px 0px rgba(0, 0, 0, 0.12);
     }
 
     .button_success {
@@ -54,35 +58,63 @@
 
     .text {
       font-size: 13px;
+      line-height: 1.5;
       padding-top: 6px;
+      margin: 0;
     }
 
     .text_sub,
     .contact {
       font-size: 11px;
+      line-height: 1.5;
       padding-top: 12px;
+      margin: 0;
     }
 
     .footer {
       font-size: 9px;
+      line-height: 1.4;
       padding-top: 24px;
+      margin: 0;
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    .logo {
+      display: block;
+      margin: 0 auto 18px auto;
+      height: 72px;
     }
   </style>
 </head>
 
 <body>
-  <main>
-    <div class="content-box" style="background-color: #1E1E1E;">
-      <div>
-        <img
-          src="data:image/png;base64, {{ base64_encode(file_get_contents(storage_path('app/public') . '/logo.png')) }}"
-          height="80px" alt="Logo">
-      </div>
+  @php
+    $logo_path = storage_path('app/public/logo.png');
+    $logo_b64 = file_exists($logo_path)
+      ? base64_encode(file_get_contents($logo_path))
+      : null;
+  @endphp
+
+  <div class="wrapper">
+    <div class="content-box">
+      @if ($logo_b64)
+        <img src="data:image/png;base64,{{ $logo_b64 }}" class="logo" alt="{{ config('app.name') }}">
+      @endif
+
       @yield('content')
+
       @include('email.scaffold.Contact')
       @include('email.scaffold.Footer')
     </div>
-  </main>
+  </div>
 </body>
 
 </html>

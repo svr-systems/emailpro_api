@@ -18,23 +18,6 @@ Route::post('login', [AuthController::class, 'login']);
 
 Route::post('ticket/email', [TicketController::class, 'sendTicket']);
 
-Route::group(['prefix' => 'public'], function () {
-  Route::group(['prefix' => 'users'], function () {
-    Route::group(['prefix' => 'password'], function () {
-      Route::group(['prefix' => 'reset'], function () {
-        Route::post('{id}', [UserController::class, 'passwordReset']);
-        Route::get('{id}', [UserController::class, 'getItemPasswordReset']);
-      });
-      Route::post('recover', [UserController::class, 'passwordRecover']);
-    });
-
-    Route::group(['prefix' => 'account_confirm'], function () {
-      Route::post('{id}', [UserController::class, 'accountConfirm']);
-      Route::get('{id}', [UserController::class, 'getItemAccountConfirm']);
-    });
-  });
-});
-
 Route::get('payments/3dsecure/{openpay_id}', [OpenpayController::class, 'saveOpenpayTransaction']);
 
 Route::group(['middleware' => 'auth:api'], function () {
@@ -56,11 +39,6 @@ Route::group(['middleware' => 'auth:api'], function () {
     Route::post('restore', [ClientController::class, 'restore']);
   });
   Route::apiResource('clients', ClientController::class);
-
-  Route::group(['prefix' => 'users'], function () {
-    Route::post('restore', [UserController::class, 'restore']);
-  });
-  Route::apiResource('users', UserController::class);
 });
 
 //CLIENTS
@@ -91,5 +69,51 @@ Route::group(['middleware' => 'auth:api'], function () {
       Route::get('user_fiscal_data', [UserFiscalDataController::class, 'getClientFiscalData']);
       Route::post('user_fiscal_data', [UserFiscalDataController::class, 'setClientFiscalData']);
     });
+  });
+});
+
+
+Route::prefix('v1')->group(function () {
+  // -------------------------
+  // Público (sin auth)
+  // -------------------------
+  Route::prefix('public')->group(function () {
+
+    Route::prefix('auth')->group(function () {
+      Route::post('login', [AuthController::class, 'login']);
+
+      Route::prefix('account')->group(function () {
+        Route::prefix('confirm')->group(function () {
+          Route::get('{token}', [UserController::class, 'accountConfirmShow']);
+          Route::post('{token}', [UserController::class, 'accountConfirm']);
+        });
+      });
+
+      Route::prefix('password')->group(function () {
+        Route::post('recover', [UserController::class, 'passwordRecover']);
+
+        Route::prefix('reset')->group(function () {
+          Route::get('{token}', [UserController::class, 'passwordResetShow']);
+          Route::post('{token}', [UserController::class, 'passwordReset']);
+        });
+      });
+    });
+
+    Route::get('catalogs/{catalog}', [CatalogController::class, 'publicIndex']);
+  });
+
+  // -------------------------
+  // Protegido (auth:api)
+  // -------------------------
+  Route::middleware(['auth:api'])->group(function () {
+
+    Route::prefix('auth')->group(function () {
+      Route::post('logout', [AuthController::class, 'logout']);
+    });
+
+    Route::apiResource('users', UserController::class);
+    Route::patch('users/{id}/activate', [UserController::class, 'activate']);
+
+    Route::get('catalogs/{catalog}', [CatalogController::class, 'index']);
   });
 });

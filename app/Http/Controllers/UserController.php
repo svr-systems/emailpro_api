@@ -2,303 +2,446 @@
 
 namespace App\Http\Controllers;
 
-use Carbon\Carbon;
-use Crypt;
-use Illuminate\Http\Request;
+use App\Http\Controllers\Concerns\HasActiveToggle;
 use App\Models\User;
-use DB;
+use App\Services\EmailService;
+use App\Support\Input;
+use Carbon\Carbon;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Throwable;
 
-class UserController extends Controller {
-  public function index(Request $req) {
+class UserController extends Controller
+{
+  use HasActiveToggle;
+
+  /**
+   * ===========================================
+   * CONFIG
+   * ===========================================
+   */
+  private const RECOVER_TTL_MINUTES = 5;
+
+  /**
+   * ===========================================
+   * HELPERS
+   * ===========================================
+   */
+  private function decryptUserId(string $token): ?int
+  {
     try {
-      return $this->apiRsp(
-        200,
-        'Registros retornados correctamente',
-        ['items' => User::getItems($req)]
-      );
+      $id = (int) Crypt::decryptString($token);
+      return $id > 0 ? $id : null;
     } catch (Throwable $err) {
-      return $this->apiRsp(500, null, $err);
+      return null;
     }
   }
 
-  public function show(Request $req, $id) {
+  private function getRecoverAt($value): Carbon
+  {
+    return $value instanceof Carbon ? $value : Carbon::parse($value);
+  }
+
+  /**
+   * ===========================================
+   * CRUD (AUTH)
+   * ===========================================
+   */
+  public function index(Request $request)
+  {
     try {
-      return $this->apiRsp(
-        200,
-        'Registro retornado correctamente',
-        ['item' => User::getItem($req, $id)]
-      );
+      return $this->rsp(200, 'Registros retornados correctamente', [
+        'items' => User::getItems($request),
+      ]);
     } catch (Throwable $err) {
-      return $this->apiRsp(500, null, $err);
+      return $this->rsp(500, null, $err);
     }
   }
 
-  public function destroy(Request $req, $id) {
-    DB::beginTransaction();
+  public function show(string $id, Request $request)
+  {
     try {
-      $item = User::find($id);
+      $item = User::getItem($id, $request);
 
-      if (!$item) {
-        return $this->apiRsp(422, 'ID no existente');
+      if (is_null($item)) {
+        return $this->rsp(404, 'Registro no encontrado');
       }
 
-      $item->is_active = false;
-      $item->updated_by_id = $req->user()->id;
-      $item->save();
-
-      DB::commit();
-      return $this->apiRsp(
-        200,
-        'Registro inactivado correctamente'
-      );
+      return $this->rsp(200, 'Registro retornado correctamente', [
+        'item' => $item,
+      ]);
     } catch (Throwable $err) {
-      DB::rollback();
-      return $this->apiRsp(500, null, $err);
-    }
-
-  }
-
-  public function restore(Request $req) {
-    DB::beginTransaction();
-    try {
-      $item = User::find($req->id);
-
-      if (!$item) {
-        return $this->apiRsp(422, 'ID no existente');
-      }
-
-      $item->is_active = true;
-      $item->updated_by_id = $req->user()->id;
-      $item->save();
-
-      DB::commit();
-      return $this->apiRsp(
-        200,
-        'Registro activado correctamente',
-        ['item' => User::getItem(null, $item->id)]
-      );
-    } catch (Throwable $err) {
-      DB::rollback();
-      return $this->apiRsp(500, null, $err);
+      return $this->rsp(500, null, $err);
     }
   }
 
-  public function store(Request $req) {
-    return $this->storeUpdate($req, null);
+  public function store(Request $request)
+  {
+    return $this->storeUpdate(null, $request);
   }
 
-  public function update(Request $req, $id) {
-    return $this->storeUpdate($req, $id);
+  public function update(string $id, Request $request)
+  {
+    return $this->storeUpdate($id, $request);
   }
 
-  public function storeUpdate($req, $id) {
+  public function destroy(string $id, Request $request)
+  {
+    return $this->setActive(User::class, $id, $request, false);
+  }
+
+  public function activate(string $id, Request $request)
+  {
+    return $this->setActive(User::class, $id, $request, true);
+  }
+
+  protected function storeUpdate(?string $id, Request $request)
+  {
     DB::beginTransaction();
+
     try {
-      $email_current = null;
-      $email = GenController::filter($req->email, 'l');
+      $store_mode = is_null($id);
+
+      $email = Input::toLower($request->email);
 
       $valid = User::validEmail(['email' => $email], $id);
       if ($valid->fails()) {
-        return $this->apiRsp(422, $valid->errors()->first());
+        DB::rollBack();
+        return $this->rsp(422, $valid->errors()->first(), null, $valid->errors()->toArray());
       }
 
-      $valid = User::valid($req->all());
+      $valid = User::validData($request->all());
       if ($valid->fails()) {
-        return $this->apiRsp(422, $valid->errors()->first());
+        DB::rollBack();
+        return $this->rsp(422, $valid->errors()->first(), null, $valid->errors()->toArray());
       }
 
-      $store_mode = is_null($id);
+      $email_current = null;
 
       if ($store_mode) {
-        $item = new User;
-        $item->created_by_id = $req->user()->id;
-        $item->updated_by_id = $req->user()->id;
+        $item = new User();
+        $item->created_by_id = $request->user()->id;
+        $item->updated_by_id = $request->user()->id;
       } else {
-        $item = User::find($id);
-        $email_current = $item->email;
+        $item = User::find((int) $id);
 
-        $item->updated_by_id = $req->user()->id;
+        if (is_null($item)) {
+          DB::rollBack();
+          return $this->rsp(404, 'Registro no encontrado');
+        }
+
+        $email_current = $item->email;
+        $item->updated_by_id = $request->user()->id;
       }
 
-      $item = $this->saveItem($item, $req);
+      $payload = $request->all();
+      $payload['email'] = $email;
+      $payload['avatar_doc'] = $request->file('avatar_doc');
 
-      if ($email_current != $email) {
+      $item = User::saveData($item, $payload);
+
+      $must_confirm = $store_mode || (!is_null($email_current) && $email_current !== $item->email);
+
+      if ($must_confirm) {
         $item->email_verified_at = null;
         $item->save();
 
-        EmailController::userAccountConfirmation($item->email, $item);
+        DB::afterCommit(function () use ($item) {
+          EmailService::userAccountConfirmation(
+            [$item->email],
+            [
+              'id' => $item->id,
+              'full_name' => $item->full_name,
+            ]
+          );
+        });
       }
 
       DB::commit();
-      return $this->apiRsp(
+
+      return $this->rsp(
         $store_mode ? 201 : 200,
         'Registro ' . ($store_mode ? 'agregado' : 'editado') . ' correctamente',
         $store_mode ? ['item' => ['id' => $item->id]] : null
       );
     } catch (Throwable $err) {
-      DB::rollback();
-      return $this->apiRsp(500, null, $err);
+      DB::rollBack();
+      return $this->rsp(500, null, $err);
     }
   }
 
-  public static function saveItem($item, $data, $is_req = true) {
-    if (!$is_req) {
-      $item->is_active = GenController::filter($data->is_active, 'b');
-    }
-
-    $item->role_id = GenController::filter($data->role_id, 'id');
-    $item->name = GenController::filter($data->name, 'U');
-    $item->paternal_surname = GenController::filter($data->paternal_surname, 'U');
-    $item->maternal_surname = GenController::filter($data->maternal_surname, 'U');
-    $item->email = GenController::filter($data->email, 'l');
-    $item->phone = GenController::filter($data->phone, 'l');
-    $item->save();
-
-    return $item;
-  }
-
-  public function getItemAccountConfirm($id) {
+  /**
+   * ===========================================
+   * PÚBLICO: CONFIRMACIÓN DE CUENTA
+   * ===========================================
+   */
+  public function accountConfirmShow(string $token, Request $request)
+  {
     try {
-      $item = User::find(Crypt::decryptString($id));
+      $user_id = $this->decryptUserId($token);
 
-      if (
-        !$item ||
-        !boolval($item->is_active) ||
-        !is_null($item->email_verified_at)
-      ) {
-        return $this->apiRsp(422, 'La cuenta ya esta confirmada y/o la acción no es procesable');
+      if (is_null($user_id)) {
+        return $this->rsp(404, 'Acción no disponible');
       }
 
-      return $this->apiRsp(
-        200,
-        'Registro retornado correctamente',
-        ['item' => [
+      $item = User::query()
+        ->select([
+          'users.id',
+          'users.is_active',
+          'users.name',
+          'users.paternal_surname',
+          'users.maternal_surname',
+          'users.email',
+          'users.email_verified_at',
+        ])
+        ->whereKey($user_id)
+        ->first();
+
+      if (is_null($item)) {
+        return $this->rsp(404, 'Acción no disponible');
+      }
+
+      if (!$item->is_active || !is_null($item->email_verified_at)) {
+        return $this->rsp(422, 'La cuenta ya está confirmada y/o la acción no es procesable');
+      }
+
+      return $this->rsp(200, 'Registro retornado correctamente', [
+        'item' => [
           'email' => $item->email,
-          'role_id' => $item->role_id,
-        ]]
-      );
+          'full_name' => $item->full_name,
+        ],
+      ]);
     } catch (Throwable $err) {
-      return $this->apiRsp(500, null, $err);
+      return $this->rsp(500, null, $err);
     }
   }
 
-  public function accountConfirm(Request $req, $id) {
+  public function accountConfirm(string $token, Request $request)
+  {
     DB::beginTransaction();
+
     try {
-      $valid = User::validPassword($req->all());
+      $valid = User::validPassword($request->all());
+
       if ($valid->fails()) {
-        return $this->apiRsp(422, $valid->errors()->first());
+        DB::rollBack();
+        return $this->rsp(422, $valid->errors()->first(), null, $valid->errors()->toArray());
       }
 
-      $item = User::find(Crypt::decryptString($id));
+      $user_id = $this->decryptUserId($token);
 
-      if (!$item || !boolval($item->is_active)) {
-        return $this->apiRsp(422, 'La acción no es procesable');
+      if (is_null($user_id)) {
+        DB::rollBack();
+        return $this->rsp(404, 'Acción no disponible');
       }
 
-      $item->email_verified_at = date('Y-m-d H:i:s');
-      $item->password = bcrypt(GenController::trim($req->password));
+      $item = User::find($user_id);
+
+      if (is_null($item) || !$item->is_active) {
+        DB::rollBack();
+        return $this->rsp(422, 'La acción no es procesable');
+      }
+
+      if (!is_null($item->email_verified_at)) {
+        DB::rollBack();
+        return $this->rsp(422, 'La cuenta ya está confirmada');
+      }
+
+      $item->email_verified_at = now();
+      $item->password = Hash::make(trim((string) $request->password));
       $item->save();
 
-      EmailController::userAccountConfirm($item->email, $item);
+      DB::afterCommit(function () use ($item) {
+        EmailService::userAccountConfirm(
+          [$item->email],
+          [
+            'email' => $item->email,
+            'full_name' => $item->full_name,
+          ]
+        );
+      });
 
       DB::commit();
-      return $this->apiRsp(200, 'Cuenta confirmada correctamente');
+
+      return $this->rsp(200, 'Cuenta confirmada correctamente');
     } catch (Throwable $err) {
-      return $this->apiRsp(500, null, $err);
+      DB::rollBack();
+      return $this->rsp(500, null, $err);
     }
   }
 
-  public function getItemPasswordReset($id) {
-    try {
-      $item = User::find(Crypt::decryptString($id));
-
-      if (
-        !$item ||
-        !boolval($item->is_active) ||
-        is_null($item->password_recover_at) ||
-        Carbon::createFromFormat('Y-m-d H:i:s', $item->password_recover_at)->addMinutes(5)->isPast()
-      ) {
-        return $this->apiRsp(422, 'Se excedierón los 5 min. para realizar esta acción o ya no es procesable');
-      }
-
-      return $this->apiRsp(
-        200,
-        'Registro retornado correctamente',
-        ['item' => [
-          'email' => $item->email,
-          'role_id' => $item->role_id,
-        ]]
-      );
-    } catch (Throwable $err) {
-      return $this->apiRsp(500, null, $err);
-    }
-  }
-
-  public function passwordReset(Request $req, $id) {
+  /**
+   * ===========================================
+   * PÚBLICO: RECUPERACIÓN / RESET DE CONTRASEÑA
+   * ===========================================
+   */
+  public function passwordRecover(Request $request)
+  {
     DB::beginTransaction();
+
     try {
-      $valid = User::validPassword($req->all());
+      $email = Input::toLower($request->email);
+
+      $valid = User::validRecoverEmail(['email' => $email]);
+
       if ($valid->fails()) {
-        return $this->apiRsp(422, $valid->errors()->first());
+        DB::rollBack();
+        return $this->rsp(422, $valid->errors()->first(), null, $valid->errors()->toArray());
       }
 
-      $item = User::find(Crypt::decryptString($id));
+      $item = User::getItemByEmail($email);
 
-      if (!$item || !boolval($item->is_active)) {
-        return $this->apiRsp(422, 'Acción no procesable');
+      $ok_message = 'Si el correo existe, recibirás un mensaje con instrucciones para restablecer tu contraseña.';
+
+      if (is_null($item) || !$item->is_active || is_null($item->email_verified_at)) {
+        DB::rollBack();
+        return $this->rsp(200, $ok_message);
       }
 
-      $item->password = bcrypt(GenController::trim($req->password));
-      $item->save();
+      if (!is_null($item->password_recover_at)) {
+        $recover_at = $this->getRecoverAt($item->password_recover_at);
 
-      EmailController::userPasswordReset($item->email, $item);
-
-      DB::commit();
-      return $this->apiRsp(200, 'Contraseña restablecida correctamente');
-    } catch (Throwable $err) {
-      return $this->apiRsp(500, null, $err);
-    }
-  }
-
-  public function passwordRecover(Request $req) {
-    try {
-      $item = User::getItemByEmail($req->email);
-
-      $msg = null;
-
-      if (!$item) {
-        $msg = 'No tenemos ningún usuario registrado con este E-mail';
-      } else {
-        if (!$item->is_active) {
-          $msg = 'Cuenta inactiva, no se puede enviar E-mail';
-        } else {
-          if (is_null($item->email_verified_at)) {
-            $msg = 'Cuenta no confirmada, no se puede enviar E-mail';
-          } else {
-            if (
-              $item->password_recover_at &&
-              !Carbon::createFromFormat('Y-m-d H:i:s', $item->password_recover_at)->addMinutes(5)->isPast()
-            ) {
-              $msg = 'El E-mail de recuperación ha sido enviado, espera 5 min. para utilizar nuevamente esta acción';
-            }
-          }
+        if ($recover_at->copy()->addMinutes(self::RECOVER_TTL_MINUTES)->isFuture()) {
+          DB::rollBack();
+          return $this->rsp(200, $ok_message);
         }
       }
 
-      if ($msg) {
-        return $this->apiRsp(422, $msg);
-      }
-
-      $item->password_recover_at = date('Y-m-d H:i:s');
+      $item->password_recover_at = now();
       $item->save();
 
-      EmailController::userPasswordRecover($item->email, $item);
+      DB::afterCommit(function () use ($item) {
+        EmailService::userPasswordRecover(
+          [$item->email],
+          [
+            'id' => $item->id,
+            'email' => $item->email,
+            'full_name' => $item->full_name,
+          ]
+        );
+      });
 
-      return $this->apiRsp(200, 'E-mail de recuperación enviado');
+      DB::commit();
+
+      return $this->rsp(200, $ok_message);
     } catch (Throwable $err) {
-      return $this->apiRsp(500, null, $err);
+      DB::rollBack();
+      return $this->rsp(500, null, $err);
+    }
+  }
+
+  public function passwordResetShow(string $token, Request $request)
+  {
+    try {
+      $user_id = $this->decryptUserId($token);
+
+      if (is_null($user_id)) {
+        return $this->rsp(404, 'Acción no disponible');
+      }
+
+      $item = User::query()
+        ->select([
+          'users.id',
+          'users.is_active',
+          'users.name',
+          'users.paternal_surname',
+          'users.maternal_surname',
+          'users.email',
+          'users.email_verified_at',
+          'users.password_recover_at',
+        ])
+        ->whereKey($user_id)
+        ->first();
+
+      if (is_null($item)) {
+        return $this->rsp(404, 'Acción no disponible');
+      }
+
+      if (
+        !$item->is_active ||
+        is_null($item->email_verified_at) ||
+        is_null($item->password_recover_at)
+      ) {
+        return $this->rsp(422, 'La acción no es procesable');
+      }
+
+      $recover_at = $this->getRecoverAt($item->password_recover_at);
+
+      if ($recover_at->copy()->addMinutes(self::RECOVER_TTL_MINUTES)->isPast()) {
+        return $this->rsp(422, 'El enlace de recuperación ha expirado. Solicita uno nuevo.');
+      }
+
+      return $this->rsp(200, 'Registro retornado correctamente', [
+        'item' => [
+          'email' => $item->email,
+          'full_name' => $item->full_name,
+        ],
+      ]);
+    } catch (Throwable $err) {
+      return $this->rsp(500, null, $err);
+    }
+  }
+
+  public function passwordReset(string $token, Request $request)
+  {
+    DB::beginTransaction();
+
+    try {
+      $valid = User::validPassword($request->all());
+
+      if ($valid->fails()) {
+        DB::rollBack();
+        return $this->rsp(422, $valid->errors()->first(), null, $valid->errors()->toArray());
+      }
+
+      $user_id = $this->decryptUserId($token);
+
+      if (is_null($user_id)) {
+        DB::rollBack();
+        return $this->rsp(404, 'Acción no disponible');
+      }
+
+      $item = User::find($user_id);
+
+      if (
+        is_null($item) ||
+        !$item->is_active ||
+        is_null($item->email_verified_at) ||
+        is_null($item->password_recover_at)
+      ) {
+        DB::rollBack();
+        return $this->rsp(422, 'La acción no es procesable');
+      }
+
+      $recover_at = $this->getRecoverAt($item->password_recover_at);
+
+      if ($recover_at->copy()->addMinutes(self::RECOVER_TTL_MINUTES)->isPast()) {
+        DB::rollBack();
+        return $this->rsp(422, 'El enlace de recuperación ha expirado. Solicita uno nuevo.');
+      }
+
+      $item->password = Hash::make(trim((string) $request->password));
+      $item->password_recover_at = null;
+      $item->save();
+
+      DB::afterCommit(function () use ($item) {
+        EmailService::userPasswordReset(
+          [$item->email],
+          [
+            'email' => $item->email,
+            'full_name' => $item->full_name,
+          ]
+        );
+      });
+
+      DB::commit();
+
+      return $this->rsp(200, 'Contraseña restablecida correctamente');
+    } catch (Throwable $err) {
+      DB::rollBack();
+      return $this->rsp(500, null, $err);
     }
   }
 }
